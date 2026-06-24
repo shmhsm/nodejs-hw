@@ -1,7 +1,6 @@
 import { Router } from 'express';
-
 import { 
-  getNotes, 
+  getAllNotes, 
   getNoteById, 
   createNote, 
   updateNote, 
@@ -17,7 +16,7 @@ import {
 
 const router = Router();
 
-router.get('/', getAllNotesSchema, getNotes);
+router.get('/', getAllNotesSchema, getAllNotes);
 
 router.get('/:noteId', noteIdSchema, getNoteById);
 
