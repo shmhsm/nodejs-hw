@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-router.get('/', getAllNotesSchema, notesController.getAllNotes);
+router.get('/', getAllNotesSchema, notesController.getNotes);
 
 router.get('/:noteId', noteIdSchema, notesController.getNoteById);
 
