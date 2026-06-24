@@ -15,9 +15,9 @@ const noteSchema = new Schema(
     },
     tag: {
       type: String,
-      enum: TAGS, // Передаем импортированный массив констант
+      enum: TAGS,
       default: 'Todo',
-      index: true, // Индекс добавлен строго по ТЗ
+      index: true, 
     },
   },
   { timestamps: true, versionKey: false },
