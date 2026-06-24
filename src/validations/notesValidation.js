@@ -2,7 +2,6 @@ import { celebrate, Joi, Segments } from 'celebrate';
 import { isValidObjectId } from 'mongoose';
 import { TAGS } from '../constants/tags.js';
 
-// Кастомный метод проверки ObjectId для Mongoose
 const objectIdCustomValidation = (value, helpers) => {
   if (!isValidObjectId(value)) {
     return helpers.message('Invalid ObjectId');
@@ -10,7 +9,6 @@ const objectIdCustomValidation = (value, helpers) => {
   return value;
 };
 
-// 1. Схема для GET /notes
 export const getAllNotesSchema = celebrate({
   [Segments.QUERY]: Joi.object().keys({
     page: Joi.number().integer().min(1).default(1),
@@ -20,14 +18,12 @@ export const getAllNotesSchema = celebrate({
   }),
 });
 
-// 2. Универсальная схема для проверки noteId
 export const noteIdSchema = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
     noteId: Joi.string().custom(objectIdCustomValidation).required(),
   }),
 });
 
-// 3. Схема для POST /notes
 export const createNoteSchema = celebrate({
   [Segments.BODY]: Joi.object().keys({
     title: Joi.string().min(1).required(),
@@ -36,7 +32,6 @@ export const createNoteSchema = celebrate({
   }),
 });
 
-// 4. Схема для PATCH /notes/:noteId
 export const updateNoteSchema = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
     noteId: Joi.string().custom(objectIdCustomValidation).required(),
@@ -47,5 +42,5 @@ export const updateNoteSchema = celebrate({
       content: Joi.string().allow('').optional(),
       tag: Joi.string().valid(...TAGS).optional(),
     })
-    .min(1), // Гарантирует, что хотя бы одно поле передано (тело не пустое)
+    .min(1), 
 });

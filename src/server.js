@@ -17,7 +17,9 @@ const bootstrap = async () => {
   await connectMongoDB();
 
   app.use(cors());
+  
   app.use(express.json());
+
   app.use(logger);
 
   app.use(notesRouter);
@@ -26,7 +28,7 @@ const bootstrap = async () => {
 
   app.use(errors());
 
-  app.use(errorHandler);  
+  app.use(errorHandler); 
 
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
