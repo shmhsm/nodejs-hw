@@ -1,32 +1,32 @@
 import 'dotenv/config';
 import express from 'express';
-import cookieParser from 'cookie-parser'; 
-import pino from 'pino-http';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { errors } from 'celebrate';
 
 import notesRouter from './routes/notesRoutes.js';
-import authRouter from './routes/authRoutes.js'; 
+import authRouter from './routes/authRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
-import { connectMongoDB } from './db/connectMongoDB.js'; 
+import { connectMongoDB } from './db/connectMongoDB.js';
+import { logger } from './middleware/logger.js';
 
 export const startServer = () => {
   const app = express();
 
   app.use(express.json());
-  app.use(cookieParser()); 
+  app.use(cookieParser());
   app.use(cors());
-  app.use(pino());
+  app.use(logger); 
 
-  app.use('/auth', authRouter);
-  app.use('/notes', notesRouter);
+  app.use(authRouter);
+  app.use(notesRouter);
 
   app.use(notFoundHandler);
   app.use(errors());
   app.use(errorHandler);
 
-  const PORT = process.env.PORT || 3030;
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
