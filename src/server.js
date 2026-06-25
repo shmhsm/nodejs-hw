@@ -6,6 +6,7 @@ import { errors } from 'celebrate';
 
 import notesRouter from './routes/notesRoutes.js';
 import authRouter from './routes/authRoutes.js';
+import userRouter from './routes/userRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { connectMongoDB } from './db/connectMongoDB.js';
@@ -21,6 +22,7 @@ export const startServer = () => {
 
   app.use(authRouter);
   app.use(notesRouter);
+  app.use(userRouter);
 
   app.use(notFoundHandler);
   app.use(errors());
