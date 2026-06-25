@@ -9,7 +9,7 @@ import notesRouter from './routes/notesRoutes.js';
 import authRouter from './routes/authRoutes.js'; 
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
-import { initMongoConnection } from './db/initMongoConnection.js'; 
+import { connectMongoDB } from './db/connectMongoDB.js'; 
 
 export const startServer = () => {
   const app = express();
@@ -32,7 +32,7 @@ export const startServer = () => {
   });
 };
 
-initMongoConnection()
+connectMongoDB()
   .then(() => {
     startServer();
   })
