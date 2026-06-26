@@ -9,15 +9,19 @@ export const updateUserAvatar = async (req, res, next) => {
       return next(createHttpError(400, 'No file'));
     }
 
-    const uploadResult = await saveFileToCloudinary(file.buffer);
+    const uploadResult = await saveFileToCloudinary(file.buffer, req.user._id);
     
-    await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       req.user._id, 
       { avatar: uploadResult.secure_url },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
-    res.status(200).json({ url: uploadResult.secure_url });
+    if (!updatedUser) {
+      return next(createHttpError(404, 'User not found'));
+    }
+
+    res.status(200).json({ url: updatedUser.avatar });
   } catch (error) {
     next(error);
   }

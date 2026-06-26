@@ -7,36 +7,7 @@ import handlebars from 'handlebars';
 import { User } from '../models/user.js';
 import { Session } from '../models/session.js';
 import { sendEmail } from '../utils/sendMail.js';
-import crypto from 'crypto';
-
-const setupSession = async (user) => {
-  await Session.deleteOne({ userId: user._id });
-
-  const accessToken = crypto.randomBytes(30).toString('base64');
-  const refreshToken = crypto.randomBytes(30).toString('base64');
-
-  const accessTokenValidUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
-  const refreshTokenValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60); // 30 дней
-
-  return await Session.create({
-    userId: user._id,
-    accessToken,
-    refreshToken,
-    accessTokenValidUntil,
-    refreshTokenValidUntil,
-  });
-};
-
-export const setSessionCookies = (session, res) => {
-  res.cookie('refreshToken', session.refreshToken, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
-  res.cookie('sessionId', session._id, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
-};
+import { createSession, setSessionCookies } from '../services/auth.js';
 
 export const registerUser = async (req, res, next) => {
   try {
@@ -50,10 +21,13 @@ export const registerUser = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hashedPassword });
 
+    const session = await createSession(user._id);
+    setSessionCookies(session, res);
+
     res.status(201).json({
       status: 201,
-      message: 'User successfully registered!',
-      data: { id: user._id, email: user.email },
+      message: 'User successfully registered and logged in!',
+      data: { id: user._id, email: user.email, accessToken: session.accessToken },
     });
   } catch (error) {
     next(error);
@@ -74,13 +48,14 @@ export const loginUser = async (req, res, next) => {
       return next(createHttpError(401, 'Invalid email or password'));
     }
 
-    const session = await setupSession(user);
+    const session = await createSession(user._id);
     setSessionCookies(session, res);
 
     res.status(200).json({
       status: 200,
       message: 'Successfully logged in an user!',
       data: {
+        user: { id: user._id, email: user.email, name: user.username },
         accessToken: session.accessToken,
       },
     });
@@ -100,15 +75,15 @@ export const refreshUserSession = async (req, res, next) => {
     const session = await Session.findOne({ _id: sessionId, refreshToken });
 
     if (!session || new Date() > session.refreshTokenValidUntil) {
-      return next(createHttpError(401, 'Invalid session'));
+      res.clearCookie('sessionId');
+      res.clearCookie('refreshToken');
+      res.clearCookie('accessToken');
+      return next(createHttpError(401, 'Invalid or expired session'));
     }
 
-    const user = await User.findById(session.userId);
-    if (!user) {
-      return next(createHttpError(404, 'User not found'));
-    }
-
-    const newSession = await setupSession(user);
+    await Session.deleteOne({ _id: sessionId });
+    const newSession = await createSession(session.userId);
+    
     setSessionCookies(newSession, res);
 
     res.status(200).json({
@@ -133,6 +108,7 @@ export const logoutUser = async (req, res, next) => {
 
     res.clearCookie('sessionId');
     res.clearCookie('refreshToken');
+    res.clearCookie('accessToken');
 
     res.status(204).send();
   } catch (error) {
@@ -168,6 +144,7 @@ export const requestResetEmail = async (req, res, next) => {
       to: email,
       subject: 'Password Reset Request',
       html,
+      from: process.env.SMTP_FROM,
     });
 
     res.status(200).json({ message: 'Password reset email sent successfully' });
