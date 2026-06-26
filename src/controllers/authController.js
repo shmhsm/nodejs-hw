@@ -15,7 +15,7 @@ export const registerUser = async (req, res, next) => {
     const existingUser = await User.findOne({ email });
 
     if (existingUser) {
-      return next(createHttpError(409, 'Email in use'));
+      return next(createHttpError(400, 'Email in use'));
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -25,9 +25,10 @@ export const registerUser = async (req, res, next) => {
     setSessionCookies(session, res);
 
     res.status(201).json({
-      status: 201,
-      message: 'User successfully registered and logged in!',
-      data: { id: user._id, email: user.email, accessToken: session.accessToken },
+      id: user._id,
+      email: user.email,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     });
   } catch (error) {
     next(error);
@@ -47,6 +48,8 @@ export const loginUser = async (req, res, next) => {
     if (!isPasswordValid) {
       return next(createHttpError(401, 'Invalid email or password'));
     }
+
+    await Session.deleteMany({ userId: user._id });
 
     const session = await createSession(user._id);
     setSessionCookies(session, res);
@@ -75,6 +78,9 @@ export const refreshUserSession = async (req, res, next) => {
     const session = await Session.findOne({ _id: sessionId, refreshToken });
 
     if (!session || new Date() > session.refreshTokenValidUntil) {
+      if (session) {
+        await Session.deleteOne({ _id: session._id });
+      }
       res.clearCookie('sessionId');
       res.clearCookie('refreshToken');
       res.clearCookie('accessToken');

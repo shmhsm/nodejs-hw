@@ -10,8 +10,10 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async (options) => {
+  const fromAddress = options.from || process.env.SMTP_FROM || 'noreply@example.com';
+
   return await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: fromAddress,
     to: options.to,
     subject: options.subject,
     html: options.html,
