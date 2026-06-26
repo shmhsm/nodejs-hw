@@ -7,6 +7,138 @@ import handlebars from 'handlebars';
 import { User } from '../models/user.js';
 import { Session } from '../models/session.js';
 import { sendEmail } from '../utils/sendMail.js';
+import crypto from 'crypto';
+
+const setupSession = async (user) => {
+  await Session.deleteOne({ userId: user._id });
+
+  const accessToken = crypto.randomBytes(30).toString('base64');
+  const refreshToken = crypto.randomBytes(30).toString('base64');
+
+  const accessTokenValidUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
+  const refreshTokenValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60); // 30 дней
+
+  return await Session.create({
+    userId: user._id,
+    accessToken,
+    refreshToken,
+    accessTokenValidUntil,
+    refreshTokenValidUntil,
+  });
+};
+
+export const setSessionCookies = (session, res) => {
+  res.cookie('refreshToken', session.refreshToken, {
+    httpOnly: true,
+    expires: session.refreshTokenValidUntil,
+  });
+  res.cookie('sessionId', session._id, {
+    httpOnly: true,
+    expires: session.refreshTokenValidUntil,
+  });
+};
+
+export const registerUser = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return next(createHttpError(409, 'Email in use'));
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ email, password: hashedPassword });
+
+    res.status(201).json({
+      status: 201,
+      message: 'User successfully registered!',
+      data: { id: user._id, email: user.email },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const loginUser = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return next(createHttpError(401, 'Invalid email or password'));
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return next(createHttpError(401, 'Invalid email or password'));
+    }
+
+    const session = await setupSession(user);
+    setSessionCookies(session, res);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Successfully logged in an user!',
+      data: {
+        accessToken: session.accessToken,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const refreshUserSession = async (req, res, next) => {
+  try {
+    const { sessionId, refreshToken } = req.cookies;
+
+    if (!sessionId || !refreshToken) {
+      return next(createHttpError(401, 'Session not found'));
+    }
+
+    const session = await Session.findOne({ _id: sessionId, refreshToken });
+
+    if (!session || new Date() > session.refreshTokenValidUntil) {
+      return next(createHttpError(401, 'Invalid session'));
+    }
+
+    const user = await User.findById(session.userId);
+    if (!user) {
+      return next(createHttpError(404, 'User not found'));
+    }
+
+    const newSession = await setupSession(user);
+    setSessionCookies(newSession, res);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Successfully refreshed a session!',
+      data: {
+        accessToken: newSession.accessToken,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logoutUser = async (req, res, next) => {
+  try {
+    const { sessionId } = req.cookies;
+
+    if (sessionId) {
+      await Session.deleteOne({ _id: sessionId });
+    }
+
+    res.clearCookie('sessionId');
+    res.clearCookie('refreshToken');
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const requestResetEmail = async (req, res, next) => {
   try {
